@@ -4,7 +4,7 @@
 #
 
 from random import randint, seed
-from sys import maxsize, pycache_prefix
+from sys import maxsize
 from typing import Dict, Iterable
 from timeit import timeit
 from multiprocessing import Pool
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     with Pool() as p:
         jobs = []  # type: list[AsyncResult]
         # try input sizes 1k -> 10M
-        for e in range(3, 4):
+        for e in range(3, 8):
             n = 10**e
             # try out values for param s
             for s in range(1, 128):

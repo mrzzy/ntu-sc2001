@@ -42,13 +42,15 @@ def merge(left: list[int], right: list[int]) -> tuple[list[int], int]:
             merged.append(right[r])
             r += 1
     # append any remaining elements from merging
-    merged.extend(left[l:])
-    merged.extend(right[r:])
+    for i in range(l, len(left)):
+        merged.append(left[i])
+    for i in range(r, len(right)):
+        merged.append(right[i])
 
     return merged, n_compare
 
 
-def hybrid_sort(items: list[int], s=inf) -> tuple[list[int], int]:
+def hybrid_sort(items: list[int], s=1) -> tuple[list[int], int]:
     """Hybrid Merge-Insertion in place sort
 
     Performs merge sort > s no. of items. Transitions to insertion sort <= s no. of items.

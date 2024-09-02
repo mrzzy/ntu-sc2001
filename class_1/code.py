@@ -4,9 +4,14 @@
 #
 
 
-from math import inf
-from random import randint
-from typing import Iterable
+from random import randint, seed
+from sys import maxsize, pycache_prefix
+from typing import Dict, Iterable
+from timeit import timeit
+from multiprocessing import Pool
+from multiprocessing.pool import AsyncResult
+
+max_input = 10000000
 
 
 def rand_range(x: int, n: int) -> list[int]:
@@ -15,17 +20,18 @@ def rand_range(x: int, n: int) -> list[int]:
 
 
 def insert_sort(items: list[int]) -> tuple[list[int], int]:
-    """Performs insertion sort on given items in place.
+    """Performs insertion sort on given items.
 
     Returns sorted list, along with no. of key comparisons.
     """
-    n_compare = 1
+    n_compare = 0
 
     for i in range(1, len(items)):
         for j in reversed(range(1, i + 1)):
             n_compare += 1
-            if items[j - 1] > items[j]:
-                items[j - 1], items[j] = items[j], items[j - 1]
+            if items[j - 1] <= items[j]:
+                break
+            items[j - 1], items[j] = items[j], items[j - 1]
     return items, n_compare
 
 
@@ -68,5 +74,39 @@ def hybrid_sort(items: list[int], s=1) -> tuple[list[int], int]:
     return merged, n_left_compare + n_right_compare + n_compare
 
 
+def trial(n: int, s: int = 1, random_state: int = 42) -> dict[str, float]:
+    """Perform a single trial using given parameters as return results as dictionary."""
+    # seed rng for reproducible random range
+    seed(random_state)
+    results = {
+        "n": n,
+        "s": s,
+    }  # type: dict[str, float]
+
+    n_compares = 0
+
+    def exec():
+        _, n_compares = hybrid_sort(rand_range(n, n))
+        results["n_compares"] = n_compares
+
+    results["time_taken"] = timeit(exec, number=1)
+    return results
+
+
 if __name__ == "__main__":
-    print(hybrid_sort(rand_range(10000000, 10000000)))
+    # search for optimals over multiple processes on all cpu cores
+    best_s, min_compares = None, maxsize
+    with Pool() as p:
+        jobs = []  # type: list[AsyncResult]
+        # try input sizes 1k -> 10M
+        for e in range(3, 7):
+            n = 10**e
+            # try out values for param s
+            for s in range(1, 128):
+                # run multiple trials per (n, s) combination
+                for t in range(5):
+                    jobs.append(p.apply_async(trial, kwds={"n": n, "s": s}))
+
+        # wait for all jobs to complete before closing pool
+        for job in jobs:
+            job.wait()

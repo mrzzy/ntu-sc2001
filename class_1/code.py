@@ -3,13 +3,14 @@
 # Example Class 1
 #
 
-
 from random import randint, seed
 from sys import maxsize, pycache_prefix
 from typing import Dict, Iterable
 from timeit import timeit
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
+from datetime import datetime
+from csv import DictWriter
 
 max_input = 10000000
 
@@ -89,7 +90,7 @@ def trial(n: int, s: int = 1, random_state: int = 42) -> dict[str, float]:
         _, n_compares = hybrid_sort(rand_range(n, n))
         results["n_compares"] = n_compares
 
-    results["time_taken"] = timeit(exec, number=1)
+    results["time_taken_s"] = timeit(exec, number=1)
     return results
 
 
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     with Pool() as p:
         jobs = []  # type: list[AsyncResult]
         # try input sizes 1k -> 10M
-        for e in range(3, 7):
+        for e in range(3, 4):
             n = 10**e
             # try out values for param s
             for s in range(1, 128):
@@ -107,6 +108,11 @@ if __name__ == "__main__":
                 for t in range(5):
                     jobs.append(p.apply_async(trial, kwds={"n": n, "s": s}))
 
-        # wait for all jobs to complete before closing pool
-        for job in jobs:
-            job.wait()
+        # retrieve results from all jobs
+        results = [job.get() for job in jobs]
+
+    # write results to csv for analysis
+    with open(f"lab_1_results_{datetime.utcnow().isoformat()}.csv", "w") as f:
+        csv = DictWriter(f, fieldnames=["n", "s", "n_compares", "time_taken_s"])
+        csv.writeheader()
+        csv.writerows(results)

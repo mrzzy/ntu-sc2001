@@ -69,16 +69,14 @@ def hybrid_sort(items: list[int], s=1) -> tuple[list[int], int]:
     # recursively sort halved subarrays
     mid = len(items) // 2
     left, n_left_compare = hybrid_sort(items[:mid], s)
-    right, n_right_compare = hybrid_sort(items[mid + 1 :], s)
+    right, n_right_compare = hybrid_sort(items[mid:], s)
 
     merged, n_compare = merge(left, right)
     return merged, n_left_compare + n_right_compare + n_compare
 
 
-def trial(n: int, s: int = 1, random_state: int = 42) -> dict[str, float]:
+def trial(n: int, s: int = 1) -> dict[str, float]:
     """Perform a single trial using given parameters as return results as dictionary."""
-    # seed rng for reproducible random range
-    seed(random_state)
     results = {
         "n": n,
         "s": s,
@@ -95,6 +93,8 @@ def trial(n: int, s: int = 1, random_state: int = 42) -> dict[str, float]:
 
 
 if __name__ == "__main__":
+    # seed rng for reproducible results
+    seed(42)
     # search for optimals over multiple processes on all cpu cores
     best_s, min_compares = None, maxsize
     with Pool() as p:
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         for e in range(3, 8):
             n = 10**e
             # try out values for param s
-            for s in range(1, 128):
+            for s in range(1, 128 +1):
                 # run multiple trials per (n, s) combination
                 for t in range(5):
                     jobs.append(p.apply_async(trial, kwds={"n": n, "s": s}))

@@ -3,16 +3,14 @@
 # Example Class 1
 #
 
+from concurrent.futures import Future, as_completed
+from concurrent.futures.process import ProcessPoolExecutor
+from csv import DictWriter
+from datetime import datetime
 from random import randint, seed
 from sys import maxsize
-from typing import Dict, Iterable
 from timeit import timeit
-from multiprocessing import Pool
-from multiprocessing.pool import AsyncResult
-from datetime import datetime
-from csv import DictWriter
-
-max_input = 10000000
+from typing import Dict, Iterable
 
 
 def rand_range(x: int, n: int) -> list[int]:
@@ -95,24 +93,23 @@ def trial(n: int, s: int = 1) -> dict[str, float]:
 if __name__ == "__main__":
     # seed rng for reproducible results
     seed(42)
-    # search for optimals over multiple processes on all cpu cores
-    best_s, min_compares = None, maxsize
-    with Pool() as p:
-        jobs = []  # type: list[AsyncResult]
-        # try input sizes 1k -> 10M
-        for e in range(3, 8):
-            n = 10**e
-            # try out values for param s
-            for s in range(1, 128 +1):
-                # run multiple trials per (n, s) combination
-                for t in range(5):
-                    jobs.append(p.apply_async(trial, kwds={"n": n, "s": s}))
-
-        # retrieve results from all jobs
-        results = [job.get() for job in jobs]
 
     # write results to csv for analysis
-    with open(f"lab_1_results_{datetime.utcnow().isoformat()}.csv", "w") as f:
+    with open(f"lab_1_results_{datetime.utcnow().isoformat()}.csv", "w+") as f:
         csv = DictWriter(f, fieldnames=["n", "s", "n_compares", "time_taken_s"])
         csv.writeheader()
-        csv.writerows(results)
+        # search for optimals over multiple processes on all cpu cores
+        with ProcessPoolExecutor() as p:
+            trials = []  # type: list[Future]
+            # try input sizes 1k -> 10M
+            for e in range(3, 8):
+                n = 10**e
+                # try out values for param s
+                for s in range(1, 128 + 1):
+                    # run multiple trials per (n, s) combination
+                    for t in range(5):
+                        trials.append(p.submit(trial, n=n, s=s))
+
+            for trail in as_completed(trials):
+                csv.writerow(trail.result())
+                f.flush()

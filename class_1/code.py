@@ -3,10 +3,12 @@
 # Example Class 1
 #
 
+import sys
 from concurrent.futures import Future, as_completed
 from concurrent.futures.process import ProcessPoolExecutor
-from csv import DictWriter
+from csv import DictReader, DictWriter
 from datetime import datetime
+from os import path
 from random import randint, seed
 from sys import maxsize
 from timeit import timeit
@@ -73,9 +75,10 @@ def hybrid_sort(items: list[int], s=1) -> tuple[list[int], int]:
     return merged, n_left_compare + n_right_compare + n_compare
 
 
-def trial(n: int, s: int = 1) -> dict[str, float]:
+def trial(t: int, n: int, s: int = 1) -> dict[str, float]:
     """Perform a single trial using given parameters as return results as dictionary."""
     results = {
+        "t": t,
         "n": n,
         "s": s,
     }  # type: dict[str, float]
@@ -91,25 +94,45 @@ def trial(n: int, s: int = 1) -> dict[str, float]:
 
 
 if __name__ == "__main__":
-    # seed rng for reproducible results
-    seed(42)
+    csv_path = sys.argv[1] if len(sys.argv) > 1 else "lab_results.csv"
+
+    # restore already completed experiment from csv if any
+    done = set()
+    if path.exists(csv_path):
+        with open(csv_path, "r") as f:
+            for row in DictReader(f):
+                done.add((int(row["n"]), int(row["s"]), int(row["t"])))
 
     # write results to csv for analysis
-    with open(f"lab_1_results_{datetime.utcnow().isoformat()}.csv", "w+") as f:
-        csv = DictWriter(f, fieldnames=["n", "s", "n_compares", "time_taken_s"])
-        csv.writeheader()
-        # search for optimals over multiple processes on all cpu cores
-        with ProcessPoolExecutor() as p:
-            trials = []  # type: list[Future]
-            # try input sizes 1k -> 10M
-            for e in range(3, 8):
-                n = 10**e
-                # try out values for param s
-                for s in range(1, 128 + 1):
-                    # run multiple trials per (n, s) combination
-                    for t in range(5):
-                        trials.append(p.submit(trial, n=n, s=s))
+    with open(csv_path, "a") as f:
+        csv = DictWriter(f, fieldnames=["n", "s", "t", "n_compares", "time_taken_s"])
+        if f.tell() == 0:
+            # new csv: write header
+            csv.writeheader()
 
-            for trail in as_completed(trials):
+        # collect trail parameters
+        params, n_skip = [], 0
+        # try input sizes 1k -> 10M
+        for e in range(3, 8):
+            n = 10**e
+            # try out values for param s
+            for s in range(1, 128 + 1):
+                # run multiple trials per (n, s) combination
+                for t in range(5):
+                    # skip trial if already done
+                    if (n, s, t) in done:
+                        n_skip += 1
+                        continue
+                    params.append({"t": t, "n": n, "s": s})
+        print(f"search: {len(params)} trials")
+        if n_skip > 0:
+            print(f"skip: {n_skip} trials already completed")
+
+        # search for optimal parameters over multiple processes on all cpu cores
+        with ProcessPoolExecutor() as p:
+            trials = [p.submit(trial, **param) for param in params]
+            for n_done, trail in enumerate(as_completed(trials)):
                 csv.writerow(trail.result())
-                f.flush()
+
+                # progress info
+                print(f"{n_done}/{len(params)} {n_done/len(params):.2%}")

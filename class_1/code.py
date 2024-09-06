@@ -105,7 +105,7 @@ if __name__ == "__main__":
             # try out values for param s
             for s in range(1, 128 +1):
                 # run multiple trials per (n, s) combination
-                for t in range(30):
+                for t in range(5):
                     jobs.append(p.apply_async(trial, kwds={"n": n, "s": s}))
 
         # retrieve results from all jobs

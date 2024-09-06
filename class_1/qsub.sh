@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N sc2001_class_1
-#PBS -l select=1:ncpus=128:mem=150gb
-#PBS -l walltime=00:20:00
+#PBS -l select=1:ncpus=128:mem=256gb
+#PBS -l walltime=24:00:00
 #PBS -o sc2001_class_1.log
 #PBS -j oe
 #PBS -q normal

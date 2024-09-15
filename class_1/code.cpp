@@ -42,8 +42,8 @@ IntVec generate_random(int n, int max_val, int seed) {
  * @param items Elements to sort.
  * @returns No. of key comparisons.
  */
-int insert_sort(IntVec &items) {
-  int n_compare = 0;
+uint64_t insert_sort(IntVec &items) {
+  uint64_t n_compare = 0;
 
   // skip first element since its always in sorted LHS
   for (int i = 1; i < items.size(); i++) {
@@ -68,13 +68,13 @@ int insert_sort(IntVec &items) {
  * @param right Right sorted subarray to merge.
  * @returns Merged sorted array & no. of key comparisons.
  */
-std::tuple<IntVec, int> merge(const IntVec &left, const IntVec &right) {
+std::tuple<IntVec, uint64_t> merge(const IntVec &left, const IntVec &right) {
   int i = 0;
   IntVec merged(left.size() + right.size());
 
   int l = 0;
   int r = 0;
-  int n_compare = 0;
+  uint64_t n_compare = 0;
   while (l < left.size() && r < right.size()) {
     // both subarrays still contain elements
     // track key comparison on next line
@@ -112,11 +112,11 @@ std::tuple<IntVec, int> merge(const IntVec &left, const IntVec &right) {
  *  switches from merge sort to insertion sort.
  * @returns Sorted array & no. of key comparisons
  */
-std::tuple<IntVec, int> hybrid_sort(const IntSpan &items, int s) {
+std::tuple<IntVec, uint64_t> hybrid_sort(const IntSpan &items, int s) {
   // switch to insertion sort when input size falls below or equal s
   if (items.size() <= s) {
     IntVec sorted(items.begin(), items.end());
-    int n_compare = insert_sort(sorted);
+    uint64_t n_compare = insert_sort(sorted);
     return {sorted, n_compare};
   }
 
@@ -137,7 +137,7 @@ std::tuple<IntVec, int> hybrid_sort(const IntSpan &items, int s) {
  * @param seed Seed used to seed random number generator.
  * @returns Time taken in microseconds & no. of key comparisons.
  */
-std::tuple<int, int> run_trial(int n, int s, int seed) {
+std::tuple<uint64_t, uint64_t> run_trial(int n, int s, int seed) {
   // generate items to sort
   IntVec items = generate_random(n, std::numeric_limits<int>::max(), seed);
   // instrument to measure calltime
@@ -165,8 +165,8 @@ int main(int argc, char *argv[]) {
   const int base_seed = 42;
   // list of (input size n, random seed)
   for (int e = 3; e <= 7; e++) {
+    int n = std::pow(10, e);
     for (int i = 0; i < n_sample; i++) {
-      int n = std::pow(10, e);
       int s = 42;
       auto [time_taken, n_compares] = run_trial(n, s, base_seed + i);
       out << n << "," << s << "," << i << "," << n_compares << ","
@@ -175,13 +175,32 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // experiment 2: try s: 1 -> fixed input size n = 10000
+  // experiment 2: try s: 1 -> fixed input size n = 1000
   const int n = 1000;
   for (int s = 1; s <= n; s++) {
     for (int i = 0; i < n_sample; i++) {
       auto [time_taken, n_compares] = run_trial(n, s, base_seed + i);
       out << n << "," << s << "," << i << "," << n_compares << ","
+          << std::setprecision(std::numeric_limits<double>::digits10)
           << time_taken << "\n";
+    }
+  }
+
+  // experiment 3: try input sizes -> 100k with exponential S
+  for (int e = 3; e <= 5; e++) {
+    int n = std::pow(10, e);
+    // by observing experiment 2, we know that S used only matters on
+    // 2-exponential intervals as merge sort is only able to succisively half
+    // input size n. hence we only need to try out S on 2-exponential scale.
+    // divide_e: divide exponent in S = n / 2^divide_e
+    for (int divide_e = 0; std::pow(2, divide_e) <= n; divide_e++) {
+      int s = n / std::pow(2, divide_e);
+      for (int i = 0; i < n_sample; i++) {
+        auto [time_taken, n_compares] = run_trial(n, s, base_seed + i);
+        out << n << "," << s << "," << i << "," << n_compares << ","
+            << std::setprecision(std::numeric_limits<double>::digits10)
+            << time_taken << "\n";
+      }
     }
   }
 }

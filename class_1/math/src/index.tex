@@ -1,0 +1,56 @@
+\maketitle
+
+\section{Hybrid Merge-Insertion Sort Analysis}
+\begin{enumerate}
+\item Let $n$ be the input size / no. of elements to be sorted.
+\item Divide $n$ elements into $\frac{n}{S}$ subarray of size $S$, the size of each subarray.
+\item For each subarray of size $n_s$, perform insertion sort:
+  \begin{itemize}
+    \item Best case: $O(S)$
+    \item Worst case: $O(S^2)$
+  \end{itemize}
+\item Since there are $\frac{n}{S}$ subarrays of size $S$, total cost of applying insertion sort as:
+  \begin{itemize}
+    \item Best case: $\frac{n}{S} \cdot S = O(n)$
+    \item Worst case: $\frac{n}{S} \cdot S^2 = O(nS)$
+  \end{itemize}
+\item Merge $\frac{n}{S}$ sorted subarray of size $S$ \\
+  \begin{tikzpicture}[
+      grow=up,
+      level/.style={sibling distance=60mm/#1}]
+    \node {$2^l S$} child foreach \n in {1,2} {
+      node {$2^{l-1}S$} child foreach \m in {1,2} {
+        node {$2^{l-2}S$} child  {
+          node{$2S$} edge from parent[dashed] child foreach \i in {1,2} {
+            node {$S$} edge from parent[solid]
+          }
+        }
+      }
+    };
+  \end{tikzpicture}
+  \begin{itemize}
+    \item Each \texttt{merge()} doubles the subarray size. Suppose $l$ iterations of
+      \texttt{merge()} has to be performed to recover input size $n$:
+      \begin{equation}
+        \begin{split}
+          2^lS &= n \\
+          2^l &= \frac{n}{s} \\
+          l\lg{2} &= \lg{(\frac{n}{s})} \\
+          l &= \log_2{(\frac{n}{s})}
+        \end{split}
+      \end{equation}
+    \item Since the cost of \texttt{merge()} is $O(n)$, the worst case total cost of merging $M$ is:
+      \begin{equation}
+        \begin{split}
+          M &= l \cdot n \\
+            &= \log_2{(\frac{n}{s})} \cdot n \\
+            &= O(\lg{(\frac{n}{s})} \cdot n)
+        \end{split}
+      \end{equation}
+  \end{itemize}
+  \item Combining insertion-sort \& merging in Hybrid Merge-Insertion sort, we have:
+    \begin{itemize}
+      \item Best Case: $O(n + \lg{(\frac{n}{s})} \cdot n)$
+      \item Best Worse: $O(nS + \lg{(\frac{n}{s})} \cdot n)$
+    \end{itemize}
+\end{enumerate}

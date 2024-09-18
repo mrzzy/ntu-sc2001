@@ -4,16 +4,19 @@
 \begin{enumerate}
 \item Let $n$ be the input size / no. of elements to be sorted.
 \item Divide $n$ elements into $\frac{n}{S}$ subarray of size $S$, the size of each subarray.
-\item For each subarray of size $n_s$, perform insertion sort:
+\item For each subarray of size $S$, perform insertion sort:
   \begin{itemize}
     \item Best case: $O(S)$
     \item Worst case: $O(S^2)$
+    \item Average case: $O(S^2)$
   \end{itemize}
 \item Since there are $\frac{n}{S}$ subarrays of size $S$, total cost of applying insertion sort as:
   \begin{itemize}
     \item Best case: $\frac{n}{S} \cdot S = O(n)$
     \item Worst case: $\frac{n}{S} \cdot S^2 = O(nS)$
+    \item Average case: $\frac{n}{S} \cdot S^2 = O(nS)$
   \end{itemize}
+   \pagebreak
 \item Merge $\frac{n}{S}$ sorted subarray of size $S$ \\
   \begin{tikzpicture}[
       grow=up,
@@ -51,6 +54,20 @@
   \item Combining insertion-sort \& merging in Hybrid Merge-Insertion sort, we have:
     \begin{itemize}
       \item Best Case: $O(n + \lg{(\frac{n}{s})} \cdot n)$
-      \item Best Worse: $O(nS + \lg{(\frac{n}{s})} \cdot n)$
+      \item Worst Case: $O(nS + \lg{(\frac{n}{s})} \cdot n)$
+      \item Average Case: $O(nS + \lg{(\frac{n}{s})} \cdot n)$
+    \end{itemize}
+  \pagebreak
+  \item To derive an exact equation for total no. of keys comparisons. 
+    \begin{itemize}
+      \item For Insertion Sort in the average case, $i$th iteration's no. of key comparisons could range $1 \to i$ with uniform probability $\frac{1}{i}$.
+      \item Expected no. of key comparisons $= \frac{1}{i}\sum^i_{j=1}{j}$
+      \item Since there are $S-1$ iterations, total no. of comparisons:
+      \begin{equation}
+        \sum^{S-1}_{i=1}\frac{1}{i}\sum^i_{j=1}{j} = \frac{1}{2}(\frac{(S-1)(S+2)}{2}) \approx \frac{1}{4}S^2
+      \end{equation}
+    \item  Total no. of comparisons for insertion sort = $\frac{1}{4}S^2 \cdot \frac{n}{S} = \frac{1}{4}nS$
+      \item For Merge Sort, the no. of comparisons = $\lg{(\frac{n}{s})} \cdot n$
+      \item Total no. of comparisons for hybrid sort = $\frac{1}{4}nS + \lg{(\frac{n}{s})} \cdot n$
     \end{itemize}
 \end{enumerate}

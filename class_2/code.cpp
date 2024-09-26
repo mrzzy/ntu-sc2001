@@ -1,6 +1,6 @@
 /*
  * SC2001
- * Example Class 1
+ * Example Class 2
  */
 
 #include <algorithm>

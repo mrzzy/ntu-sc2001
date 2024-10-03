@@ -26,6 +26,10 @@ struct DistantVertex {
   Vertex vertex;
   uint32_t distance;
 
+  bool operator==(const DistantVertex &other) const {
+    return vertex == other.vertex;
+  }
+
   bool operator>(const DistantVertex &other) const {
     return distance > other.distance;
   }
@@ -51,7 +55,22 @@ public:
   virtual void enqueue(T value) = 0;
   /** Get and remove the minimum value from the Priority Queue */
   virtual T dequeue() = 0;
+  /** Replace the old value with new value in the Priority Queue */
+  void replace(T old, T replacement) {
+    // dequeue until we locate old value
+    std::stack<T> dequeued;
+    while (size() > 0 && min() != old) {
+      dequeued.push(dequeue());
+    }
+    // push the replacement value onto the priority queue
+    enqueue(replacement);
 
+    // shift dequeued elements back onto the priority queue
+    while (dequeued.size() > 0) {
+      enqueue(dequeued.top());
+      dequeued.pop();
+    }
+  }
   virtual ~PriorityQueue() = default;
 };
 
@@ -265,8 +284,8 @@ std::forward_list<Vertex> find_shortest(const Graph &graph, Vertex start,
       if (via_distance < distance[neighbour]) {
         // found shorter distance: update currently known shortest distance to
         // neighbour
-        // enqueue neighbour priority queue
-        explorable.enqueue(DistantVertex{neighbour, via_distance});
+        explorable.replace(DistantVertex{neighbour, distance[neighbour]},
+                           DistantVertex{neighbour, via_distance});
         // update distance[v]
         distance[neighbour] = via_distance;
         // track vertex is prior vertex in shortest path

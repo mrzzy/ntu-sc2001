@@ -234,6 +234,11 @@ std::forward_list<Vertex> find_shortest(const Graph &graph, Vertex start,
 
   while (explorable.size() > 0) {
     auto [vertex, min_dist] = explorable.dequeue();
+    // optimisation: already explored vertices are ignored
+    if (is_explored[vertex]) {
+      continue;
+    }
+
     // mark current vertex as explored
     is_explored[vertex] = true;
 

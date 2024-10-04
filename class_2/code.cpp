@@ -138,28 +138,32 @@ public:
   void enqueue(DistantVertex value) override {
     // add item and fix heap invariant
     items.push_back(value);
-    std::push_heap(items.begin(), items.end(), cmp);
     // create index mapping in lookup table
     lookup[value.vertex] = items.size() - 1;
+    // fix heap invariant to add new element
+    fix_heap_up(items.size() - 1);
   }
 
   // O(log(n))
   DistantVertex dequeue() override {
-    // swap out min element and fix heap invariant
-    std::pop_heap(items.begin(), items.end(), cmp);
+    // swap out min item for removal
+    swap(0, items.size() - 1);
 
     // remove vertex from collections
     DistantVertex value = items.back();
     lookup.erase(value.vertex);
     items.pop_back();
+
+    // fix heap invariant
+    fix_heap_down();
     return value;
   }
 
   // O(log(n))
   void reduce(DistantVertex old, DistantVertex replacement) override {
     if (old.distance < replacement.distance) {
-      throw new std::logic_error("Expected vertex replacement distance to be "
-                                 "smaller than old distance");
+      throw std::logic_error("Expected vertex replacement distance to be "
+                             "smaller than old distance");
     }
 
     // nonexisting old item, create intesad
@@ -172,7 +176,7 @@ public:
     items[index].distance = replacement.distance;
 
     // fix heap invariant upwards since distance has decreased for vertex
-    fixHeapUp(index);
+    fix_heap_up(index);
   }
 
 private:
@@ -181,19 +185,56 @@ private:
    * Specialised implementation is needed as both items vector & lookup table
    * have to be updated.
    */
-  void fixHeapUp(int index) {
+  void fix_heap_up(int index) {
     while (index > 0 && items[index].distance < items[parent(index)].distance) {
       // swap index & parent positions to fix heap invariant
-      lookup[items[index].vertex] = parent(index);
-      lookup[items[parent(index)].vertex] = index;
-      std::swap(items[index], items[parent(index)]);
-
+      swap(index, parent(index));
       index = parent(index);
+    }
+  }
+
+  /**
+   * Fix heap invariant downwards from root.
+   * Specialised implementation is needed as both items vector & lookup table
+   * have to be updated.
+   */
+  void fix_heap_down() {
+    int index = 0;
+    while (index < items.size()) {
+      // compute lowest distance of 3items : parent - left child - right child
+      int min_index = index;
+      if (left(index) < items.size() &&
+          items[left(index)].distance < items[min_index].distance) {
+        min_index = left(index);
+      }
+      if (right(index) < items.size() &&
+          items[right(index)].distance < items[min_index].distance) {
+        min_index = right(index);
+      }
+
+      if (index == min_index) {
+        // item at index in correct position, nothing else to do.
+        return;
+      }
+
+      // swap items to fix heap invariant
+      swap(index, min_index);
+      index = min_index;
     }
   }
 
   /** Get heap parent index of given index */
   int parent(int index) { return (index - 1) / 2; }
+  /** Get heap left child index of given index */
+  int left(int index) { return index * 2 + 1; }
+  /** Get heap right child index of given index */
+  int right(int index) { return index * 2 + 2; }
+
+  void swap(int left, int right) {
+    lookup[items[left].vertex] = right;
+    lookup[items[right].vertex] = left;
+    std::swap(items[left], items[right]);
+  }
 };
 
 /*
@@ -288,8 +329,12 @@ public:
  * Find the shortest path from start to end vertex on the given graph.
  */
 template <typename PQ>
-std::forward_list<Vertex> find_shortest(const Graph &graph, Vertex start,
-                                        Vertex end) {
+std::tuple<std::forward_list<Vertex>, uint32_t>
+find_shortest(const Graph &graph, Vertex start, Vertex end) {
+  /// trivial case already on destination
+  if (start == end) {
+    return {std::forward_list<Vertex>(), 0};
+  }
   // distance[v] tracks shortest distance from start vertex to vertex v
   std::vector<uint32_t> distance(graph.n_vertices(), UINT_MAX);
   distance[start] = 0;
@@ -318,7 +363,7 @@ std::forward_list<Vertex> find_shortest(const Graph &graph, Vertex start,
         v = previous[v];
       }
       path.push_front(start);
-      return path;
+      return {path, distance[end]};
     }
 
     // enqueue neighbouring vertices for exploration
@@ -386,14 +431,15 @@ int main(int argc, char *argv[]) {
 
   // perform shortest path search using priority queue of selected
   // implementation
-  auto path = (std::string(argv[2]) == "array")
-                  ? find_shortest<ArrayPQ>(*graph, start, end)
-                  : find_shortest<HeapPQ>(*graph, start, end);
+  auto [path, distance] = (std::string(argv[2]) == "array")
+                              ? find_shortest<ArrayPQ>(*graph, start, end)
+                              : find_shortest<HeapPQ>(*graph, start, end);
 
   // output shortest path
   std::ostringstream path_str;
   for (int vertex : path) {
     path_str << vertex << " ";
   }
-  std::cout << "shortest: " << path_str.str() << std::endl;
+  // std::cout << "shortest: " << path_str.str() << ", "
+  //           << "distance: " << distance << std::endl;
 }

@@ -1,1 +1,2 @@
 networkx==3.3
+psutil==6.0.0

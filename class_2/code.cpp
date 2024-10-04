@@ -14,6 +14,7 @@
 #include <sstream>
 #include <stack>
 #include <stdexcept>
+#include <unordered_map>
 #include <vector>
 
 #define UINT_MAX std::numeric_limits<uint32_t>::max()
@@ -45,53 +46,39 @@ struct Edge {
 /*
  * Priority Queue interface.
  */
-template <typename T> class PriorityQueue {
+class PriorityQueue {
 public:
   /** Get the minimum value */
-  virtual T min() const = 0;
+  virtual DistantVertex min() const = 0;
   /** Current no. of elements in the Priority Queue */
   virtual uint32_t size() const = 0;
   /** Add a value into the Priority Queue */
-  virtual void enqueue(T value) = 0;
+  virtual void enqueue(DistantVertex value) = 0;
   /** Get and remove the minimum value from the Priority Queue */
-  virtual T dequeue() = 0;
-  /** Replace the old value with new value in the Priority Queue */
-  void replace(T old, T replacement) {
-    // dequeue until we locate old value
-    std::stack<T> dequeued;
-    while (size() > 0 && min() != old) {
-      dequeued.push(dequeue());
-    }
-    // push the replacement value onto the priority queue
-    enqueue(replacement);
-
-    // shift dequeued elements back onto the priority queue
-    while (dequeued.size() > 0) {
-      enqueue(dequeued.top());
-      dequeued.pop();
-    }
-  }
+  virtual DistantVertex dequeue() = 0;
+  /** reduce the old vertex distance with lower distance */
+  virtual void reduce(DistantVertex old, DistantVertex replacement) = 0;
   virtual ~PriorityQueue() = default;
 };
 
 /* Array implementation of a Priority Queue */
-template <typename T> class ArrayPQ : public PriorityQueue<T> {
+class ArrayPQ : public PriorityQueue {
 private:
   // use vector to implement array to simplify implementation
   // items are stored in descending order, with the last element also being the
   // minimum element.
-  std::vector<T> items;
+  std::vector<DistantVertex> items;
 
 public:
   // O(1)
-  T min() const override { return items.back(); }
+  DistantVertex min() const override { return items.back(); }
 
   uint32_t size() const override { return items.size(); }
 
   // O(n)
-  void enqueue(T value) override {
+  void enqueue(DistantVertex value) override {
     // dequeue elements smaller than value
-    std::stack<T> smaller;
+    std::stack<DistantVertex> smaller;
     while (size() > 0 && value > min()) {
       smaller.push(dequeue());
     }
@@ -105,43 +92,108 @@ public:
   }
 
   // O(1)
-  T dequeue() override {
-    T value = items.back();
+  DistantVertex dequeue() override {
+    DistantVertex value = items.back();
     items.pop_back();
     return value;
+  }
+
+  // O(nlogn)
+  void reduce(DistantVertex old, DistantVertex replacement) override {
+    // dequeue until we locate old value
+    std::stack<DistantVertex> dequeued;
+    while (size() > 0 && min() != old) {
+      dequeued.push(dequeue());
+    }
+    // push the replacement value onto the priority queue
+    enqueue(replacement);
+
+    // shift dequeued elements back onto the priority queue
+    while (dequeued.size() > 0) {
+      enqueue(dequeued.top());
+      dequeued.pop();
+    }
   }
 };
 
 /* Min Heap implementation of a Priority Queue */
-template <typename T> class HeapPQ : public PriorityQueue<T> {
+class HeapPQ : public PriorityQueue {
 private:
   // items stored in min heap ordering
-  std::vector<T> items;
+  std::vector<DistantVertex> items;
+  // lookup table to enable fast O(1) lookup of position of vertex within items
+  std::unordered_map<Vertex, int> lookup;
+  // comparator used to order heap
+  // greater<uint32_t> ensures that minimum element stays on top in the stdlib's
+  // max heap implementation
+  std::greater<DistantVertex> cmp;
 
 public:
   // O(1)
-  T min() const override { return items[0]; }
+  DistantVertex min() const override { return items[0]; }
 
   uint32_t size() const override { return items.size(); }
 
   // O(log(n))
-  void enqueue(T value) override {
+  void enqueue(DistantVertex value) override {
     // add item and fix heap invariant
     items.push_back(value);
-    // greater<uint32_t> ensures that minimum element stays on top
-    std::push_heap(items.begin(), items.end(), std::greater<T>());
+    std::push_heap(items.begin(), items.end(), cmp);
+    // create index mapping in lookup table
+    lookup[value.vertex] = items.size() - 1;
   }
 
   // O(log(n))
-  T dequeue() override {
+  DistantVertex dequeue() override {
     // swap out min element and fix heap invariant
-    // greater<uint32_t> ensures that minimum element stays on top
-    std::pop_heap(items.begin(), items.end(), std::greater<T>());
+    std::pop_heap(items.begin(), items.end(), cmp);
 
-    T value = items.back();
+    // remove vertex from collections
+    DistantVertex value = items.back();
+    lookup.erase(value.vertex);
     items.pop_back();
     return value;
   }
+
+  // O(log(n))
+  void reduce(DistantVertex old, DistantVertex replacement) override {
+    if (old.distance < replacement.distance) {
+      throw new std::logic_error("Expected vertex replacement distance to be "
+                                 "smaller than old distance");
+    }
+
+    // nonexisting old item, create intesad
+    if (!lookup.contains(old.vertex)) {
+      return enqueue(replacement);
+    }
+
+    // update distance for old item
+    const int index = lookup[old.vertex];
+    items[index].distance = replacement.distance;
+
+    // fix heap invariant upwards since distance has decreased for vertex
+    fixHeapUp(index);
+  }
+
+private:
+  /**
+   * Fix heap invariant upwards from index -> 0 (root).
+   * Specialised implementation is needed as both items vector & lookup table
+   * have to be updated.
+   */
+  void fixHeapUp(int index) {
+    while (index > 0 && items[index].distance < items[parent(index)].distance) {
+      // swap index & parent positions to fix heap invariant
+      lookup[items[index].vertex] = parent(index);
+      lookup[items[parent(index)].vertex] = index;
+      std::swap(items[index], items[parent(index)]);
+
+      index = parent(index);
+    }
+  }
+
+  /** Get heap parent index of given index */
+  int parent(int index) { return (index - 1) / 2; }
 };
 
 /*
@@ -246,7 +298,7 @@ std::forward_list<Vertex> find_shortest(const Graph &graph, Vertex start,
   std::vector<Vertex> previous(graph.n_vertices(), UINT_MAX);
   // priority queue of explorable vertices
   PQ pq = PQ();
-  PriorityQueue<DistantVertex> &explorable = pq;
+  PriorityQueue &explorable = pq;
   explorable.enqueue(DistantVertex{start, 0});
   // set of already explored vertices
   std::vector<bool> is_explored(graph.n_vertices(), false);
@@ -284,8 +336,8 @@ std::forward_list<Vertex> find_shortest(const Graph &graph, Vertex start,
       if (via_distance < distance[neighbour]) {
         // found shorter distance: update currently known shortest distance to
         // neighbour
-        explorable.replace(DistantVertex{neighbour, distance[neighbour]},
-                           DistantVertex{neighbour, via_distance});
+        explorable.reduce(DistantVertex{neighbour, distance[neighbour]},
+                          DistantVertex{neighbour, via_distance});
         // update distance[v]
         distance[neighbour] = via_distance;
         // track vertex is prior vertex in shortest path
@@ -335,8 +387,8 @@ int main(int argc, char *argv[]) {
   // perform shortest path search using priority queue of selected
   // implementation
   auto path = (std::string(argv[2]) == "array")
-                  ? find_shortest<ArrayPQ<DistantVertex>>(*graph, start, end)
-                  : find_shortest<HeapPQ<DistantVertex>>(*graph, start, end);
+                  ? find_shortest<ArrayPQ>(*graph, start, end)
+                  : find_shortest<HeapPQ>(*graph, start, end);
 
   // output shortest path
   std::ostringstream path_str;

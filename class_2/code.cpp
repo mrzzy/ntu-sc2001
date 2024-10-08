@@ -253,7 +253,7 @@ public:
   virtual uint32_t n_vertices() const = 0;
 
   /** Get an list to all edges from with the given source 'src' vertex. */
-  virtual std::vector<Edge> connected(Vertex src) const = 0;
+  virtual std::forward_list<Edge> connected(Vertex src) const = 0;
 
   virtual ~Graph() = default;
 };
@@ -280,16 +280,16 @@ public:
   uint32_t n_vertices() const override { return matrix.size(); }
 
   // O(n)
-  std::vector<Edge> connected(Vertex src) const override {
+  std::forward_list<Edge> connected(Vertex src) const override {
     if (src >= matrix.size()) {
       throw std::logic_error("src vertex out of bounds");
     }
 
     // collect connected edges for src vertex
-    std::vector<Edge> edges;
+    std::forward_list<Edge> edges;
     for (uint32_t dest = 0; dest < n_vertices(); dest++) {
       if (matrix[src][dest] != UINT_MAX) {
-        edges.push_back(Edge{src, matrix[src][dest], dest});
+        edges.push_front(Edge{src, matrix[src][dest], dest});
       }
     }
 
@@ -304,20 +304,20 @@ class AdjList : public Graph {
 private:
   // array of adjacency lists tracking connected edges of each vertex.
   // neighbours[v] is a list of edges to neighbouring vertices
-  std::vector<std::vector<Edge>> neighbours;
+  std::vector<std::forward_list<Edge>> neighbours;
 
 public:
   void init(uint32_t n_vertices, std::vector<Edge> edges) override {
-    neighbours = std::vector(n_vertices, std::vector<Edge>());
+    neighbours = std::vector(n_vertices, std::forward_list<Edge>());
     for (Edge e : edges) {
-      neighbours[e.src].push_back(e);
+      neighbours[e.src].push_front(e);
     }
   }
 
   uint32_t n_vertices() const override { return neighbours.size(); }
 
   // O(1)
-  std::vector<Edge> connected(Vertex src) const override {
+  std::forward_list<Edge> connected(Vertex src) const override {
     if (src >= n_vertices()) {
       throw std::logic_error("src vertex out of bounds");
     }
